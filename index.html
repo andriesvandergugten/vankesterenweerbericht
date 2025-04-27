@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>5-daagse Weersverwachting Katwijk aan Zee</title>
+  <meta http-equiv="refresh" content="1800"> <!-- 30 minuten verversen -->
+  <style>
+    body {
+      background-color: white;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #222;
+      margin: 0;
+      padding: 30px;
+    }
+    h1 {
+      text-align: center;
+      color: #000000;
+      font-size: 2rem;
+      margin-bottom: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 1rem;
+      background-color: #fff;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      overflow: hidden;
+    }
+    th, td {
+      padding: 14px 10px;
+      text-align: center;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    th {
+      background-color: #f9f9f9;
+      color: #333;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    .datum {
+      font-weight: bold;
+      color: #B8000C;
+    }
+  </style>
+</head>
+<body>
+  <h1>5-daagse Weersverwachting Katwijk aan Zee</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Datum</th>
+        <th>Temperatuur</th>
+        <th>Wind</th>
+        <th>Regenkans</th>
+      </tr>
+    </thead>
+    <tbody id="weerdata">
+      <tr><td colspan="4">Laden...</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    async function haalWeerdata() {
+      const lat = 52.2;
+      const lon = 4.4;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability,winddirection_10m,windspeed_10m,cloudcover&timezone=Europe%2FAmsterdam`;
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      const times = data.hourly.time;
+      const temps = data.hourly.temperature_2m;
+      const winds = data.hourly.windspeed_10m;
+      const winddirs = data.hourly.winddirection_10m;
+      const rain = data.hourly.precipitation_probability;
+      const clouds = data.hourly.cloudcover;
+
+      const today = new Date();
+      const tbody = document.getElementById("weerdata");
+      tbody.innerHTML = '';
+
+      for (let d = 0; d < 5; d++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + d);
+        const dateString = date.toISOString().split('T')[0];
+
+        const indices = times
+          .map((tijd, idx) => tijd.startsWith(dateString) ? idx : -1)
+          .filter(idx => idx !== -1);
+
+        if (indices.length === 0) continue;
+
+        const gemTemp = Math.round(indices.reduce((a, i) => a + temps[i], 0) / indices.length);
+        const minTemp = Math.min(...indices.map(i => temps[i]));
+        const maxTemp = Math.max(...indices.map(i => temps[i]));
+        const gemWind = Math.round(indices.reduce((a, i) => a + winds[i], 0) / indices.length);
+        const gemWindDir = Math.round(indices.reduce((a, i) => a + winddirs[i], 0) / indices.length);
+        const gemRain = Math.round(indices.reduce((a, i) => a + rain[i], 0) / indices.length);
+        const gemClouds = Math.round(indices.reduce((a, i) => a + clouds[i], 0) / indices.length);
+
+        let bewolkingEmoji = "☀️";
+        if (gemClouds > 80) {
+          bewolkingEmoji = "☁️";
+        } else if (gemClouds > 40) {
+          bewolkingEmoji = "🌥️";
+        }
+
+        tbody.innerHTML += `
+          <tr>
+            <td class="datum">${date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}</td>
+            <td>${maxTemp}° / ${minTemp}° ${bewolkingEmoji}</td>
+            <td>${windrichtingNaam(gemWindDir)} ${gemWind} km/u</td>
+            <td>${gemRain}%</td>
+          </tr>
+        `;
+      }
+    }
+
+    function windrichtingNaam(graden) {
+      const richtingen8 = ["N", "NO", "O", "ZO", "Z", "ZW", "W", "NW"];
+      return richtingen8[Math.round(graden / 45) % 8];
+    }
+
+    haalWeerdata();
+
+    setInterval(haalWeerdata, 1800000); // elke 30 minuten verversen
+  </script>
+</body>
+</html>
