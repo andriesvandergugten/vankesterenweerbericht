@@ -68,7 +68,16 @@
       const container = document.getElementById("weerdata");
       container.innerHTML = '';
 
-      for (let d = 0; d < 5; d++) {
+      let startDayOffset = 0;
+      const todayIndices = times
+        .map((tijd, idx) => tijd.startsWith(today.toISOString().split('T')[0]) ? idx : -1)
+        .filter(idx => idx !== -1);
+
+      if (todayIndices.length < 6) {
+        startDayOffset = 1; // Sla vandaag over als er weinig uren over zijn
+      }
+
+      for (let d = startDayOffset; d < 5 + startDayOffset; d++) {
         const date = new Date(today);
         date.setDate(today.getDate() + d);
         const dateString = date.toISOString().split('T')[0];
@@ -109,4 +118,4 @@
     setInterval(haalWeerdata, 1800000); // elke 30 minuten verversen
   </script>
 </body>
-</html>
+</html>  
